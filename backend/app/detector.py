@@ -60,23 +60,3 @@ def determine_focus_status(detected_objects):
 
     # No person
     return "Away Mode"
-
-
-if __name__ == "__main__":
-
-    image_path = "image/ss02.png"
-
-    objects = detect_objects(image_path)
-
-    print("\nDetected Objects:")
-
-    for obj in objects:
-        print(
-            f"- {obj['name']} "
-            f"(confidence: {obj['confidence']:.2f})"
-        )
-
-    status = determine_focus_status(objects)
-
-    print("\nFocusGuard Status:")
-    print(status)

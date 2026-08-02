@@ -221,3 +221,5 @@ model/
 
 # YOLO model weights
 *.pt
+
+uploads/
