@@ -1,62 +1,41 @@
+import io
+
+from PIL import Image
 from ultralytics import YOLO
-from pathlib import Path
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-MODEL_PATH = BASE_DIR / "model" / "yolov8n.pt"
+from app.config import MODEL_PATH, CONFIDENCE_THRESHOLD
 
-# Load YOLOv8 Nano model
+
+# Load YOLO model once when the application starts
 model = YOLO(MODEL_PATH)
 
 
-def detect_objects(image_path):
-    """
-    Detect objects in an image using YOLOv8.
-    """
+def detect_objects(image_bytes):
 
-    results = model(image_path)
+    # Convert bytes into an image
+    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
 
-    detected_objects = []
+    # Run YOLO inference
+    results = model(
+        image,
+        conf=CONFIDENCE_THRESHOLD
+    )
+
+    detections = []
 
     for result in results:
-        names = result.names
 
         for box in result.boxes:
+
             class_id = int(box.cls[0])
+
             confidence = float(box.conf[0])
 
-            object_name = names[class_id]
+            class_name = model.names[class_id]
 
-            detected_objects.append({
-                "name": object_name,
-                "confidence": confidence
+            detections.append({
+                "name": class_name,
+                "confidence": round(confidence, 3)
             })
 
-    return detected_objects
-
-
-def determine_focus_status(detected_objects):
-    """
-    Convert YOLO detection results into a FocusGuard status.
-    """
-
-    person_detected = False
-    phone_detected = False
-
-    for obj in detected_objects:
-
-        if obj["name"] == "person":
-            person_detected = True
-
-        if obj["name"] == "cell phone":
-            phone_detected = True
-
-    # Person + phone
-    if person_detected and phone_detected:
-        return "Digital Distraction Detected"
-
-    # Person without phone
-    if person_detected and not phone_detected:
-        return "Focused Working"
-
-    # No person
-    return "Away Mode"
+    return detections

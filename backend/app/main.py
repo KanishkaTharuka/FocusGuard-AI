@@ -1,61 +1,72 @@
-from pathlib import Path
-import shutil
+from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
 
-from fastapi import FastAPI, File, UploadFile
-
-from app.detector import detect_objects, determine_focus_status
+from app.detector import detect_objects
+from app.focus_logic import FocusDecisionEngine
 
 
 app = FastAPI(
-    title="FocusGuard AI",
-    version="1.0.0"
+    title="FocusGuard AI API"
 )
 
+# CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Temporary upload folder
-UPLOAD_DIR = Path("uploads")
-UPLOAD_DIR.mkdir(exist_ok=True)
+# Focus Decision Engine
+focus_engine = FocusDecisionEngine()
 
 
+# Root endpoint
 @app.get("/")
-def home():
+def root():
+
     return {
-        "message": "FocusGuard AI Backend Running"
+        "message": "FocusGuard AI API is running"
     }
 
 
-@app.get("/health")
-def health():
-    return {
-        "status": "healthy"
-    }
-
-
+# Detection endpoint
 @app.post("/detect")
 async def detect(file: UploadFile = File(...)):
 
-    # Uploaded file path
-    file_path = UPLOAD_DIR / file.filename
+    # Read uploaded image
+    image_bytes = await file.read()
 
-    # Save uploaded image temporarily
-    with file_path.open("wb") as buffer:
-        shutil.copyfileobj(file.file, buffer)
+    # Run YOLO detection
+    detections = detect_objects(image_bytes)
 
-    # Send image to YOLO
-    detections = detect_objects(file_path)
 
-    # Generate FocusGuard status
-    status = determine_focus_status(detections)
+    # Check detected objects
+    person_detected = False
+    phone_detected = False
 
+
+    for detection in detections:
+
+        if detection["name"] == "person":
+            person_detected = True
+
+        if detection["name"] == "cell phone":
+            phone_detected = True
+
+
+    # Focus Decision
+    focus_result = focus_engine.get_status(
+        person_detected,
+        phone_detected
+    )
+
+    # Return response
     return {
-        "status": status,
+        "status": focus_result["status"],
+        "duration": focus_result["duration"],
+        "person_detected": person_detected,
+        "phone_detected": phone_detected,
         "detections": detections
     }
