@@ -5,11 +5,19 @@ from app.detector import detect_objects
 from app.focus_logic import FocusDecisionEngine
 
 
+# -----------------------------------------
+# FastAPI Application
+# -----------------------------------------
+
 app = FastAPI(
     title="FocusGuard AI API"
 )
 
-# CORS
+
+# -----------------------------------------
+# CORS Configuration
+# -----------------------------------------
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,11 +26,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+# -----------------------------------------
 # Focus Decision Engine
+# -----------------------------------------
+
 focus_engine = FocusDecisionEngine()
 
 
-# Root endpoint
+# -----------------------------------------
+# Root Endpoint
+# -----------------------------------------
+
 @app.get("/")
 def root():
 
@@ -31,42 +46,74 @@ def root():
     }
 
 
-# Detection endpoint
-@app.post("/detect")
-async def detect(file: UploadFile = File(...)):
+# -----------------------------------------
+# Detection Endpoint
+# -----------------------------------------
 
+@app.post("/detect")
+async def detect(
+    file: UploadFile = File(...)
+):
+
+    # -----------------------------------------
     # Read uploaded image
+    # -----------------------------------------
+
     image_bytes = await file.read()
 
+
+    # -----------------------------------------
     # Run YOLO detection
-    detections = detect_objects(image_bytes)
+    # -----------------------------------------
+
+    detections = detect_objects(
+        image_bytes
+    )
 
 
-    # Check detected objects
-    person_detected = False
-    phone_detected = False
+    # -----------------------------------------
+    # Check Person Detection
+    # -----------------------------------------
+
+    person_detected = any(
+        detection["name"] == "person"
+        for detection in detections
+    )
 
 
-    for detection in detections:
+    # -----------------------------------------
+    # Check Phone Detection
+    # -----------------------------------------
 
-        if detection["name"] == "person":
-            person_detected = True
+    phone_detected = any(
+        detection["name"] == "cell phone"
+        for detection in detections
+    )
 
-        if detection["name"] == "cell phone":
-            phone_detected = True
 
-
+    # -----------------------------------------
     # Focus Decision
+    # -----------------------------------------
+
     focus_result = focus_engine.get_status(
         person_detected,
         phone_detected
     )
 
-    # Return response
+
+    # -----------------------------------------
+    # Return API Response
+    # -----------------------------------------
+
     return {
+
         "status": focus_result["status"],
+
         "duration": focus_result["duration"],
+
         "person_detected": person_detected,
+
         "phone_detected": phone_detected,
+
         "detections": detections
     }

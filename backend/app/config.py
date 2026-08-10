@@ -16,7 +16,7 @@ AWAY_SECONDS = 30
 
 
 # YOLO confidence threshold
-CONFIDENCE_THRESHOLD = 0.3
+CONFIDENCE_THRESHOLD = 0.5
 
 
 # YOLO model location
